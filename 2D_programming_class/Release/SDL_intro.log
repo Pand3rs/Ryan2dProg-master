@@ -1,0 +1,27 @@
+﻿  main.cpp
+c:\users\ryan\documents\flocking_fps\ryan2dprog\2d_programming_class\main.cpp(81): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+c:\users\ryan\documents\flocking_fps\ryan2dprog\2d_programming_class\main.cpp(83): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+c:\users\ryan\documents\flocking_fps\ryan2dprog\2d_programming_class\main.cpp(93): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+c:\users\ryan\documents\flocking_fps\ryan2dprog\2d_programming_class\main.cpp(96): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+c:\users\ryan\documents\flocking_fps\ryan2dprog\2d_programming_class\main.cpp(103): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+c:\users\ryan\documents\flocking_fps\ryan2dprog\2d_programming_class\main.cpp(104): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+c:\users\ryan\documents\flocking_fps\ryan2dprog\2d_programming_class\main.cpp(144): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\users\ryan\documents\flocking_fps\ryan2dprog\2d_programming_class\main.cpp(146): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+c:\users\ryan\documents\flocking_fps\ryan2dprog\2d_programming_class\main.cpp(147): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+c:\users\ryan\documents\flocking_fps\ryan2dprog\2d_programming_class\main.cpp(151): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+c:\users\ryan\documents\flocking_fps\ryan2dprog\2d_programming_class\main.cpp(152): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+c:\users\ryan\documents\flocking_fps\ryan2dprog\2d_programming_class\main.cpp(161): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\users\ryan\documents\flocking_fps\ryan2dprog\2d_programming_class\main.cpp(163): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+c:\users\ryan\documents\flocking_fps\ryan2dprog\2d_programming_class\main.cpp(164): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+c:\users\ryan\documents\flocking_fps\ryan2dprog\2d_programming_class\main.cpp(223): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+c:\users\ryan\documents\flocking_fps\ryan2dprog\2d_programming_class\main.cpp(224): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+c:\users\ryan\documents\flocking_fps\ryan2dprog\2d_programming_class\main.cpp(225): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+c:\users\ryan\documents\flocking_fps\ryan2dprog\2d_programming_class\main.cpp(226): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+c:\users\ryan\documents\flocking_fps\ryan2dprog\2d_programming_class\main.cpp(260): warning C4244: 'argument': conversion from 'float' to 'int', possible loss of data
+c:\users\ryan\documents\flocking_fps\ryan2dprog\2d_programming_class\main.cpp(292): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+  Generating code
+  1 of 8 functions (12.5%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    0 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  SDL_intro.vcxproj -> C:\Users\Ryan\Documents\flocking_fps\Ryan2dProg\2D_programming_class\Release\SDL_intro.exe
