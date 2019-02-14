@@ -14,12 +14,24 @@ using namespace std;
 #pragma comment(linker,"/subsystem:console")
 
 SDL_Renderer *renderer = NULL;
+
 int screen_width = 800;
 int screen_height = 600;
-int num_balls = 200;
 
-unsigned char prev_key_state[256];
-unsigned char *keys = NULL;
+const int max_balls = 5;
+int ball_size = 20;
+
+const int num_bricks = 48;
+int brick_w = 40;
+int brick_h = 20;
+
+float player_x = 360.0;
+float player_y = 520.0;
+int player_w = 80;
+int player_h = 20;
+
+int border_w = 10;
+
 SDL_Window *window = NULL;
 
 struct Pixel
@@ -29,11 +41,17 @@ struct Pixel
 
 struct ball
 {
-	float x, y, fx, fy, alive;
+	float x, y, fx, fy;
 	unsigned char r, g, b, a;
 };
 
-void set_Pixel_Alternative(unsigned char* buffer, int width, int x, int y, int r, int g, int b, int a)
+struct brick
+{
+	int x, y, alive;
+	int r, g, b, a;
+};
+
+void set_pixel(unsigned char* buffer, int width, int x, int y, int r, int g, int b, int a)
 {
 	Pixel *p = (Pixel*)buffer;
 	p[y*width + x].r = r;
@@ -42,7 +60,7 @@ void set_Pixel_Alternative(unsigned char* buffer, int width, int x, int y, int r
 	p[y*width + x].a = a;
 }
 
-void fill_Rectangle(unsigned char*buffer, int buffer_width, int buffer_height, int rect_x, int rect_y, int rect_w, int rect_h, int r, int g, int b, int a)
+void fill_rectangle(unsigned char*buffer, int buffer_width, int buffer_height, int rect_x, int rect_y, int rect_w, int rect_h, int r, int g, int b, int a)
 {
 	for (int i = 0; i < rect_w; i++)
 	{
@@ -50,194 +68,98 @@ void fill_Rectangle(unsigned char*buffer, int buffer_width, int buffer_height, i
 		{
 			int x = i + rect_x;
 			int y = j + rect_y;
-			set_Pixel_Alternative(buffer, screen_width, x, y, r, g, b, a);
+			set_pixel(buffer, screen_width, x, y, r, g, b, a);
 		}
 	}
 }
 
-void drawLine(unsigned char* buffer, float x1, float y1, float x2, float y2, int r, int g, int b, int a)
+void spawn_ball(ball *a)
 {
-	float dx = x2 - x1;
-	float dy = y2 - y1;
-	float k, l;
-	if (x1 < x2)
+	a->x = player_x + player_w / 2 - ball_size / 2;
+	a->y = player_y - ball_size;
+	a->fx = 1 - 2.0 * rand() / RAND_MAX;
+	a->fy = 1 - 2.0 * rand() / RAND_MAX;
+	a->r = rand() % 255;
+	a->g = rand() % 255;
+	a->b = rand() % 255;
+	a->a = 255;
+}
+
+void populate_bricks(unsigned char*buffer, brick *bricks)
+{
+	for (int i = 0; i < num_bricks; i++)
 	{
-		k = x1;
-		l = x2;
-	}
-	else if (x1 == x2)
-	{
-		if (y1 < y2)
+		if (i <= 15)
 		{
-			k = y1;
-			l = y2;
+			bricks[i].x = (screen_width - brick_w * 16) / 2 + i * brick_w;
+			bricks[i].y = 80;
 		}
-		else
+		else if (i > 15 && i <= 31)
 		{
-			k = y2;
-			l = y1;
+			bricks[i].x = (screen_width - brick_w * 16) / 2 + (i - 16) * brick_w;
+			bricks[i].y = 80 + brick_h;
 		}
-		for (int i = k; i < l; i++)
+		else if (i > 31)
 		{
-			int x = x1;
-			int y = i;
-			set_Pixel_Alternative(buffer, screen_width, x, y, r, g, b, a);
+			bricks[i].x = (screen_width - brick_w * 16) / 2 + (i - 32) * brick_w;
+			bricks[i].y = 80 + brick_h * 2;
 		}
-	}
-	else
-	{
-		k = x2;
-		l = x1;
-	}
-	for (int i = k; i < l; i++)
-	{
-		int x = i;
-		int y = y1 + dy * (i - x1) / dx;
-		set_Pixel_Alternative(buffer, screen_width, x, y, r, g, b, a);
+
+		bricks[i].alive = 1;
+		bricks[i].r = rand() % 255;
+		bricks[i].g = rand() % 255;
+		bricks[i].b = rand() % 255;
+		bricks[i].a = 255;
+
+		fill_rectangle(buffer, screen_width, screen_height, bricks[i].x, bricks[i].y,
+			brick_w, brick_h, bricks[i].r, bricks[i].g, bricks[i].b, bricks[i].a);
 	}
 }
 
-void impulse(ball *a, ball *b, float mass1, float mass2, int size, int x)
+int collision_with_dir(ball *a, brick *b)
 {
-	float w = size;
-	float h = size;
-	float dx = a->x - b->x;//W/H not accounted for since perfect squares
-	float dy = a->y - b->y;
+	float w = 0.5 * (ball_size + brick_w);
+	float h = 0.5 * (ball_size + brick_h);
+	float dx = a->x - b->x + 0.5*(ball_size - brick_w);
+	float dy = a->y - b->y + 0.5*(ball_size - brick_h);
 
-	int n1, n2;
-	if (x == 1)
+	if (dx*dx <= w * w && dy*dy <= h * h)
 	{
-		n1 = 0;
-		n2 = -1;
-	}
-	else if (x == 2)
-	{
-		n1 = 1;
-		n2 = 0;
-	}
-	else if (x == 3)
-	{
-		n1 = 0;
-		n2 = 1;
-	}
-	else if (x == 4)
-	{
-		n1 = -1;
-		n2 = 0;
-	}
-	else if (x == 0)
-	{
-		n1 = 0;
-		n2 = 0;
-	}
-	printf("n1:%d n2:%d\n", n1, n2);
-	float rel_vel_x = b->fx - a->fx;
-	float rel_vel_y = b->fy - a->fy;
-
-	float dot = rel_vel_x * n1 + rel_vel_y * n2;
-	if (dot < 0) return;
-
-	float absorbtion = 1.0;
-	float g = -(1.0 + absorbtion) * dot / (mass1 + mass2);
-	printf("n1:%d g:%f\n", n1, g);
-	float impulse_ax = n1 * g;
-	float impulse_ay = n2 * g;
-
-	float impulse_bx = n1 * g;
-	float impulse_by = n2 * g;
-
-	printf("impulse x:%f impulse y:%f\n", impulse_ax, impulse_ay);
-	if (impulse_ay > 30)
-	{
-		getchar();
-	}
-	a->fx -= impulse_ax;
-	a->fy -= impulse_ay;
-	b->fx += impulse_bx;
-	b->fy += impulse_by;
-
-/*
-	float mt = 1.0 / (mass1 + mass2);
-
-	float tangent_x = n1;
-	float tangent_y = -n2;
-	float tangent_d = rel_vel_x * tangent_x + rel_vel_y * tangent_y;
-	tangent_x *= -tangent_d * mt;
-	tangent_y *= -tangent_d * mt;
-
-	a->fx -= tangent_x;
-	a->fy -= tangent_y;
-	b->fx += tangent_x;
-	b->fy += tangent_y;
-*/
-}
-
-void collision(ball *a, ball *b, float mass1, float mass2, int size)
-{
-	if (a->x + size < b->x || a->x > b->x + size) return;
-	else if (a->y + size < b->y || a->y > b->y + size) return;
-	else
-	{
-
-		float dx = a->x - b->x;//W/H not accounted for since perfect squares
-		float dy = a->y - b->y;
-		int x = 0;
-		float wy = size * dy;
-		float hx = size * dx;
+		float wy = w * dy;
+		float hx = h * dx;
 		if (wy > hx)
 		{
-			x = (wy + hx > 0) ? 3 : 4; //one line if statement
-			a->alive += 1;
-			impulse(a, b, mass1, mass2, size, x);
+			return (wy + hx > 0) ? 3 : 4;
 		}
 		else
 		{
-			x = (wy + hx > 0) ? 2 : 1;
-			a->alive += 1;
-			impulse(a, b, mass1, mass2, size, x);
+			return (wy + hx > 0) ? 2 : 1;
 		}
 	}
+	return 0;
 }
 
 int main(int argc, char **argv)
 {
 	SDL_Init(SDL_INIT_VIDEO);
 	srand(0);
-	prev_key_state[256];
-	keys = (unsigned char*)SDL_GetKeyboardState(NULL);
 
-	window = SDL_CreateWindow(
-		"I did eet",
-		SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, screen_width, screen_height, SDL_WINDOW_SHOWN);
-
+	window = SDL_CreateWindow("I did eet", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, screen_width, screen_height, SDL_WINDOW_SHOWN);
 	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
 
 	SDL_Surface *your_draw_buffer = SDL_CreateRGBSurfaceWithFormat(0, screen_width, screen_height, 32, SDL_PIXELFORMAT_RGBA32);
 	SDL_Surface *screen = SDL_GetWindowSurface(window);
 	SDL_SetSurfaceBlendMode(your_draw_buffer, SDL_BLENDMODE_NONE);
 	unsigned char *my_own_buffer = (unsigned char*)malloc(sizeof(unsigned char)*screen_width*screen_height * 4);
-	ball *balls_array = (ball*)malloc(sizeof(ball)*num_balls);
+	ball balls_array[max_balls] = {};
+	brick bricks[num_bricks] = {};
 
-	int bsize = 20;
-	int counter = 0;
-	int t1 = SDL_GetTicks();
-	for (int i = 0; i < num_balls; i++)
-	{
-		balls_array[i].x = rand() % (screen_width - bsize);
-		balls_array[i].y = rand() % (screen_height - bsize);
-		balls_array[i].alive = 1;
-		balls_array[i].fx = 1 - 2.0 * rand() / RAND_MAX;
-		balls_array[i].fy = 1 - 2.0 * rand() / RAND_MAX;
-		balls_array[i].r = rand() % 255;
-		balls_array[i].g = rand() % 255;
-		balls_array[i].b = rand() % 255;
-		balls_array[i].a = 255;
-	}
+	int active_balls = 1;
+	spawn_ball(&balls_array[0]);
+	populate_bricks(my_own_buffer, bricks);
 
 	for (;;)
 	{
-		memcpy(prev_key_state, keys, 256);
-
 		//consume all window events first
 		SDL_Event event;
 		while (SDL_PollEvent(&event))
@@ -245,39 +167,110 @@ int main(int argc, char **argv)
 			if (event.type == SDL_QUIT)
 			{
 				exit(0);
+			}	
+		}
+
+		//borders
+		{
+			fill_rectangle(my_own_buffer, screen_width, screen_height, 0, 0,
+				border_w, screen_height, 100, 200, 100, 255);
+			fill_rectangle(my_own_buffer, screen_width, screen_height, 0, 0,
+				screen_width, border_w, 100, 200, 100, 255);
+			fill_rectangle(my_own_buffer, screen_width, screen_height, 790, 0,
+				border_w, screen_height, 100, 200, 100, 255);
+			fill_rectangle(my_own_buffer, screen_width, screen_height, 0, 590,
+				screen_width, border_w, 100, 200, 100, 255);
+		}
+
+		//player
+		{
+			const Uint8 *state = SDL_GetKeyboardState(NULL);
+
+			if (state[SDL_SCANCODE_A] && player_x > border_w)
+			{
+				player_x -= 1;
+			}
+			if (state[SDL_SCANCODE_D] && player_x < screen_width - player_w - border_w)
+			{
+				player_x += 1;
+			}
+
+			fill_rectangle(my_own_buffer, screen_width, screen_height, player_x, player_y,
+				player_w, player_h, 255, 50, 50, 255);
+		}
+
+		//update bricks
+		for (int i = 0; i < num_bricks; i++)
+		{
+			if (bricks[i].alive == 1)
+			{
+				fill_rectangle(my_own_buffer, screen_width, screen_height, bricks[i].x, bricks[i].y,
+					brick_w, brick_h, bricks[i].r, bricks[i].g, bricks[i].b, bricks[i].a);
 			}
 		}
 
-		//update and screen bounce
-		for (int i = 0; i < num_balls; i++)
+		//update balls
+		for (int i = 0; i < active_balls; i++)
 		{
-			if (balls_array[i].x <= 0 || balls_array[i].x >= screen_width - bsize)
+			//bounds and player collision
+			if (balls_array[i].x <= border_w || balls_array[i].x >= screen_width - ball_size - border_w)
 			{
 				balls_array[i].fx *= -1;
-				balls_array[i].alive += 1;
 			}
-			if (balls_array[i].y <= 0 || balls_array[i].y >= screen_height - bsize)
+			if (balls_array[i].y <= border_w || balls_array[i].y >= screen_height - ball_size - border_w)
 			{
 				balls_array[i].fy *= -1;
-				balls_array[i].alive += 1;
 			}
 
-			balls_array[i].x += balls_array[i].fx;
-			balls_array[i].y += balls_array[i].fy;
-			fill_Rectangle(my_own_buffer, screen_width, screen_height, balls_array[i].x, balls_array[i].y,
-				bsize, bsize, balls_array[i].r, balls_array[i].g, balls_array[i].b, balls_array[i].a);
-		}
-
-		//collision
-		for (int i = 0; i < num_balls; i++)
-		{
-			for (int j = 0; j < num_balls; j++)
+			if (balls_array[i].y + ball_size >= player_y && balls_array[i].x + ball_size >= player_x && balls_array[i].x <= player_x + player_w)
 			{
-				if (i != j)
+				balls_array[i].fy *= -1;
+			}
+
+			//brick collision
+			for (int i = 0; i < active_balls; i++)
+			{
+				for (int j = 0; j < num_bricks; j++)
 				{
-					collision(&balls_array[i], &balls_array[j], 1.0, 1.0, bsize);
+					if (bricks[j].alive == 1)
+					{
+						int x = collision_with_dir(&balls_array[i], &bricks[j]);
+						if (x == 1 || x == 3)
+						{
+							balls_array[i].fy *= -1;
+
+							bricks[j].alive = 0;
+							if (active_balls < max_balls)
+							{
+								spawn_ball(&balls_array[active_balls]);
+								active_balls += 1;
+							}
+							break;
+						}
+
+						else if (x == 2 || x == 4)
+						{
+							balls_array[i].fx *= -1;
+
+							bricks[j].alive = 0;
+							if (active_balls < max_balls)
+							{
+								spawn_ball(&balls_array[active_balls]);
+								active_balls += 1;
+							}
+							break;
+						}
+					}
 				}
 			}
+
+			//add force
+			balls_array[i].x += balls_array[i].fx;
+			balls_array[i].y += balls_array[i].fy;
+
+			//draw ball to buffer
+			fill_rectangle(my_own_buffer, screen_width, screen_height, balls_array[i].x, balls_array[i].y,
+					ball_size, ball_size, balls_array[i].r, balls_array[i].g, balls_array[i].b, balls_array[i].a);
 		}
 
 		memcpy(your_draw_buffer->pixels, my_own_buffer, sizeof(unsigned char)*screen_width*screen_height * 4);
@@ -286,21 +279,13 @@ int main(int argc, char **argv)
 		SDL_BlitScaled(your_draw_buffer, NULL, screen, NULL);
 		SDL_UpdateWindowSurface(window);
 
+		//clear screen
 		for (int i = 0; i < screen_width*screen_height; i++)
 		{
 			my_own_buffer[i * 4] = 0;
 			my_own_buffer[i * 4 + 1] = 0;
 			my_own_buffer[i * 4 + 2] = 0;
 			my_own_buffer[i * 4 + 3] = 0;
-		}
-
-		if (counter++ >= 100)
-		{
-			int t2 = SDL_GetTicks();
-			float time = (t2 - t1) / 100.0;
-			printf("%f\n", time);
-			counter = 0;
-			t1 = SDL_GetTicks();
 		}
 	}
 	return 0;
